@@ -1,0 +1,27 @@
+
+<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shell Genérico de IA</title>
+<style>
+body{font-family:Arial;margin:0;background:#f4f6fa;color:#182230}header{background:#111827;color:white;padding:24px 6%}main{max-width:1100px;margin:25px auto;padding:0 15px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.card{background:white;padding:20px;border-radius:12px;border:1px solid #ddd}.full{grid-column:1/-1}input,select{width:100%;padding:10px;margin:5px 0 10px;border:1px solid #ccc;border-radius:7px;box-sizing:border-box}button{padding:9px 12px;border:0;border-radius:7px;background:#2563eb;color:white;margin:3px;cursor:pointer}.del{background:#dc2626}.edit{background:#64748b}.item{padding:9px;border:1px solid #eee;border-radius:8px;margin:6px 0}.rule{font-family:monospace}.ok{color:#15803d;font-weight:bold}.no{color:#dc2626;font-weight:bold}.trace{max-height:400px;overflow:auto;background:#fafafa;padding:12px}@media(max-width:750px){.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+</style></head><body>
+<header><h1>Shell Genérico de Sistema Baseado em Conhecimento</h1><p>Base de conhecimento · Inferência · Explicação · Interface</p><button onclick="resetDemo()">Carregar demonstração</button></header>
+<main><div class="grid">
+<section class="card"><h2>Base de Conhecimento — Fatos</h2><input id="fact" placeholder="ex.: renda_alta"><button onclick="addFact()">Adicionar</button><div id="facts"></div></section>
+<section class="card"><h2>Base de Conhecimento — Regras</h2><input id="rid" placeholder="ID: R1"><input id="conds" placeholder="condições: renda_alta, garantia_adequada"><input id="conc" placeholder="conclusão: risco_baixo"><button onclick="addRule()">Adicionar</button><div id="rules"></div></section>
+<section class="card full"><h2>Consulta / Inferência</h2><input id="goal" placeholder="Objetivo, ex.: aprovar_credito"><select id="method"><option value="forward">Forward Chaining</option><option value="backward">Backward Chaining</option><option value="mixed">Mixed Chaining</option></select><button onclick="infer()">Executar</button><div id="res"></div></section>
+<section class="card full"><h2>Explicação</h2><div id="exp">Execute uma consulta para ver POR QUÊ?, COMO? e a trilha.</div></section>
+</div></main>
+<script>
+const $=id=>document.getElementById(id);
+async function api(u,o={}){let r=await fetch(u,{headers:{'Content-Type':'application/json'},...o}),d=await r.json();if(!r.ok)throw Error(d.error||'Erro');return d}
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+async function load(){let k=await api('/api/kb');$('facts').innerHTML=k.facts.map(f=>`<div class=item>${esc(f)} <button class=edit onclick='editFact(${JSON.stringify(f)})'>Editar</button><button class=del onclick='delFact(${JSON.stringify(f)})'>Excluir</button></div>`).join('');$('rules').innerHTML=k.rules.map(r=>`<div class="item rule"><b>${esc(r.id)}</b>: SE ${r.conditions.map(esc).join(' E ')} ENTÃO ${esc(r.conclusion)}<br><button class=edit onclick='editRule(${JSON.stringify(r)})'>Editar</button><button class=del onclick='delRule(${JSON.stringify(r.id)})'>Excluir</button></div>`).join('')}
+async function addFact(){try{await api('/api/facts',{method:'POST',body:JSON.stringify({fact:$('fact').value})});$('fact').value='';load()}catch(e){alert(e.message)}}
+async function editFact(x){let n=prompt('Novo fato:',x);if(n&&n!=x)try{await api('/api/facts/'+encodeURIComponent(x),{method:'PUT',body:JSON.stringify({fact:n})});load()}catch(e){alert(e.message)}}
+async function delFact(x){if(confirm('Excluir '+x+'?')){await api('/api/facts/'+encodeURIComponent(x),{method:'DELETE'});load()}}
+async function addRule(){try{await api('/api/rules',{method:'POST',body:JSON.stringify({id:$('rid').value,conditions:$('conds').value.split(',').map(x=>x.trim()).filter(Boolean),conclusion:$('conc').value})});$('rid').value=$('conds').value=$('conc').value='';load()}catch(e){alert(e.message)}}
+async function editRule(r){let i=prompt('ID:',r.id),c=prompt('Condições separadas por vírgula:',r.conditions.join(', ')),o=prompt('Conclusão:',r.conclusion);if(i&&c&&o)try{await api('/api/rules/'+encodeURIComponent(r.id),{method:'PUT',body:JSON.stringify({id:i,conditions:c.split(',').map(x=>x.trim()).filter(Boolean),conclusion:o})});load()}catch(e){alert(e.message)}}
+async function delRule(x){if(confirm('Excluir '+x+'?')){await api('/api/rules/'+encodeURIComponent(x),{method:'DELETE'});load()}}
+async function infer(){try{let r=await api('/api/infer',{method:'POST',body:JSON.stringify({goal:$('goal').value,method:$('method').value})});$('res').innerHTML=`<p class="${r.success?'ok':'no'}">${r.success?'✓ Objetivo comprovado':'✗ Objetivo não comprovado'}</p><p><b>Método:</b> ${esc(r.method)}<br><b>Objetivo:</b> ${esc(r.goal)}</p><p><b>Fatos derivados:</b> ${r.derived.map(esc).join(', ')}</p>`;$('exp').innerHTML=`<p><b>POR QUÊ?</b> ${esc(r.why)}</p><p><b>COMO?</b> ${esc(r.how)}</p><h3>Trilha da inferência</h3><div class=trace>${r.trace.map((x,i)=>`<p>${i+1}. ${esc(x)}</p>`).join('')}</div>`}catch(e){alert(e.message)}}
+async function resetDemo(){if(confirm('Substituir a base atual?')){await api('/api/reset',{method:'POST'});load()}} load();
+</script></body></html>

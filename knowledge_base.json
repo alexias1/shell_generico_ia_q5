@@ -1,0 +1,33 @@
+{
+  "facts": [
+    "renda_alta",
+    "garantia_adequada",
+    "historico_bom"
+  ],
+  "rules": [
+    {
+      "id": "R1",
+      "conditions": [
+        "renda_alta",
+        "garantia_adequada"
+      ],
+      "conclusion": "risco_baixo"
+    },
+    {
+      "id": "R2",
+      "conditions": [
+        "historico_bom",
+        "renda_alta"
+      ],
+      "conclusion": "cliente_confiavel"
+    },
+    {
+      "id": "R3",
+      "conditions": [
+        "cliente_confiavel",
+        "garantia_adequada"
+      ],
+      "conclusion": "aprovar_credito"
+    }
+  ]
+}
